@@ -58,3 +58,7 @@ app/src/main/kotlin/com/safescope/scanner/
 ## 许可证
 
 本项目采用 [MIT 许可证](LICENSE)。详见 `LICENSE` 文件。
+
+## 贡献者
+
+- [2386866276](https://github.com/2386866276)：项目作者
