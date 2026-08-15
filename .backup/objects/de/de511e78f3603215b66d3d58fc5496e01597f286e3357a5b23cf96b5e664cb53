@@ -1,0 +1,131 @@
+package com.safescope.scanner.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.safescope.scanner.model.DeviceInfo
+import com.safescope.scanner.scanner.DeviceInfoScanner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DeviceInfoScreen(onBack: () -> Unit = {}) {
+    var deviceInfo by remember { mutableStateOf<DeviceInfo?>(null) }
+    var storageInfo by remember { mutableStateOf<Pair<Long, Long>?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try { deviceInfo = DeviceInfoScanner.getDeviceInfo(context); storageInfo = DeviceInfoScanner.getStorageInfo() }
+            catch (_: Exception) { deviceInfo = null; storageInfo = null }
+            finally { isLoading = false }
+        }
+    }
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("设备信息") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "返回") } }) }
+    ) { innerPadding ->
+        if (isLoading) {
+            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(); Spacer(Modifier.height(16.dp)); Text("正在获取设备信息...") }
+            }
+        } else if (deviceInfo != null) {
+            val info = deviceInfo!!
+            LazyColumn(
+                Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                item {
+                    Card(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PhoneAndroid, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("${info.brand} ${info.model}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Android ${info.androidVersion} (API ${info.apiLevel})", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                item {
+                    val hasRisk = info.isRooted || info.isUSBDebugEnabled
+                    Card(Modifier.fillMaxWidth(), RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(
+                        containerColor = if (hasRisk) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                    )) {
+                        Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
+                            Text("安全状态", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                                Column { Text("Root 状态", style = MaterialTheme.typography.bodySmall); Text(if (info.isRooted) "已 Root" else "未 Root", fontWeight = FontWeight.Bold, color = if (info.isRooted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) }
+                                Column { Text("USB 调试", style = MaterialTheme.typography.bodySmall); Text(if (info.isUSBDebugEnabled) "已开启" else "已关闭", fontWeight = FontWeight.Bold, color = if (info.isUSBDebugEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) }
+                            }
+                        }
+                    }
+                }
+                item { InfoCard("基本信息", listOf("设备品牌" to info.brand, "设备型号" to info.model, "Android 版本" to info.androidVersion, "API 级别" to info.apiLevel.toString(), "安全补丁" to info.securityPatch, "基带版本" to info.baseband, "构建时间" to info.buildTime)) }
+                item { InfoCard("存储信息", listOf("总存储" to formatSize(storageInfo?.first ?: 0), "可用存储" to formatSize(storageInfo?.second ?: 0))) }
+                item { InfoCard("内存信息", listOf("总内存" to formatSize(info.totalMemory), "可用内存" to formatSize(info.availableMemory))) }
+                item { InfoCard("处理器", listOf("CPU ABI" to info.cpuAbi.joinToString(", "))) }
+                item { InfoCard("电池状态", listOf("电量" to "${info.batteryLevel}%", "USB 连接" to if (info.isUSBConnected) "是" else "否")) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(title: String, items: List<Pair<String, String>>) {
+    Card(Modifier.fillMaxWidth(), RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(14.dp), Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            items.forEach { (k, v) -> Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) { Text(k, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(v, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium) } }
+        }
+    }
+}
+
+private fun formatSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    var size = bytes.toDouble(); var i = 0
+    while (size >= 1024 && i < units.size - 1) { size /= 1024; i++ }
+    return "%.2f %s".format(size, units[i])
+}

@@ -1,0 +1,182 @@
+package com.safescope.scanner.scanner
+
+import com.safescope.scanner.model.DecodedSnippet
+import com.safescope.scanner.model.ScriptAnalysisAction
+import com.safescope.scanner.model.ShScriptAnalysis
+import com.safescope.scanner.model.ThreatLevel
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.util.Base64
+import java.util.Locale
+import java.util.regex.Pattern
+
+object ShScriptAnalyzer {
+
+    private val BASE64_PATTERN = Pattern.compile("\\b[A-Za-z0-9+/]{40,}={0,2}\\b")
+    private val HEX_PATTERN = Pattern.compile("\\b(?:[0-9A-Fa-f]{2}){20,}\\b")
+    private val EVAL_PATTERN = Pattern.compile("(?i)\\b(eval|exec|source)\\s+\\$")
+    private val DYNAMIC_CAT_PATTERN = Pattern.compile("\\$\\(")
+    private val BACKTICK_PATTERN = Pattern.compile("`[^`]+`")
+    private val OBFUSCATION_VAR_PATTERN = Pattern.compile("\\$[A-Za-z0-9_]{1,2}\\s*=")
+    private val EXPLICIT_INTERPRETER_PATTERN = Pattern.compile("(?i)#!.*(bash|sh|dash|zsh|fish|python|perl|ruby|php)")
+
+    fun analyze(inputStream: java.io.InputStream, fileName: String): ShScriptAnalysis {
+        val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
+        val lines = mutableListOf<String>()
+        var lineCount = 0
+        var fileSize = 0L
+
+        reader.useLines { seq ->
+            seq.forEach { line ->
+                lineCount++
+                lines.add(line)
+                fileSize += line.toByteArray(Charsets.UTF_8).size
+            }
+        }
+
+        val decodedSnippets = mutableListOf<DecodedSnippet>()
+        val suspiciousPatterns = mutableListOf<String>()
+        var hasDanger = false
+        var hasWarning = false
+
+        for ((index, line) in lines.withIndex()) {
+            if (line.isBlank()) continue
+
+            if (ShScanner.DANGEROUS_RULES.any { it.pattern.matcher(line).find() }) {
+                hasDanger = true
+                suspiciousPatterns.add("L${index + 1}: ${ShScanner.DANGEROUS_RULES.first { it.pattern.matcher(line).find() }.title}")
+            } else if (ShScanner.WARNING_RULES.any { it.pattern.matcher(line).find() }) {
+                hasWarning = true
+                suspiciousPatterns.add("L${index + 1}: ${ShScanner.WARNING_RULES.first { it.pattern.matcher(line).find() }.title}")
+            }
+
+            if (EVAL_PATTERN.matcher(line).find() || DYNAMIC_CAT_PATTERN.matcher(line).find() || BACKTICK_PATTERN.matcher(line).find()) {
+                suspiciousPatterns.add("L${index + 1}: 动态命令构造")
+                hasWarning = true
+            }
+
+            if (OBFUSCATION_VAR_PATTERN.matcher(line).find()) {
+                suspiciousPatterns.add("L${index + 1}: 疑似混淆变量")
+                hasWarning = true
+            }
+
+            val base64Matcher = BASE64_PATTERN.matcher(line)
+            if (base64Matcher.find()) {
+                val snippet = base64Matcher.group()
+                val decoded = tryDecodeBase64(snippet)
+                decodedSnippets += DecodedSnippet(
+                    encodingType = "base64",
+                    original = snippet,
+                    decoded = decoded,
+                    riskHint = classifyDecodedRisk(decoded)
+                )
+                if (classifyDecodedRisk(decoded) == "high") {
+                    hasDanger = true
+                    suspiciousPatterns.add("L${index + 1}: Base64 解码发现高危内容")
+                }
+            }
+
+            val hexMatcher = HEX_PATTERN.matcher(line)
+            if (hexMatcher.find() && !base64Matcher.find()) {
+                val snippet = hexMatcher.group()
+                val decoded = tryDecodeHex(snippet)
+                decodedSnippets += DecodedSnippet(
+                    encodingType = "hex",
+                    original = snippet,
+                    decoded = decoded,
+                    riskHint = classifyDecodedRisk(decoded)
+                )
+            }
+        }
+
+        if (lineCount == 0) {
+            suspiciousPatterns.add("空脚本")
+        }
+
+        val overallRisk = when {
+            hasDanger -> ThreatLevel.DANGEROUS
+            hasWarning -> ThreatLevel.WARNING
+            else -> ThreatLevel.SAFE
+        }
+
+        val suggestedAction = when {
+            hasDanger -> ScriptAnalysisAction.BLOCK
+            hasWarning -> ScriptAnalysisAction.WARN
+            else -> ScriptAnalysisAction.MONITOR
+        }
+
+        val summary = buildSummary(lineCount, hasDanger, hasWarning, decodedSnippets, suspiciousPatterns)
+
+        return ShScriptAnalysis(
+            fileName = fileName,
+            fileSize = fileSize,
+            lineCount = lineCount,
+            encodingType = detectEncoding(lines),
+            decodedSnippets = decodedSnippets.take(10),
+            suspiciousPatterns = suspiciousPatterns.take(20),
+            overallRisk = overallRisk,
+            suggestedAction = suggestedAction,
+            summary = summary
+        )
+    }
+
+    private fun tryDecodeBase64(encoded: String): String {
+        return try {
+            val decodedBytes = Base64.getDecoder().decode(encoded)
+            val decoded = String(decodedBytes, Charsets.UTF_8)
+            if (isPrintable(decoded)) decoded else "[非文本内容]"
+        } catch (e: Exception) {
+            "[解码失败]"
+        }
+    }
+
+    private fun tryDecodeHex(hex: String): String {
+        return try {
+            val bytes = hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+            val decoded = String(bytes, Charsets.UTF_8)
+            if (isPrintable(decoded)) decoded else "[非文本内容]"
+        } catch (e: Exception) {
+            "[解码失败]"
+        }
+    }
+
+    private fun isPrintable(str: String): Boolean {
+        return str.all { it.isDefined() && !it.isISOControl() }
+    }
+
+    private fun classifyDecodedRisk(decoded: String): String {
+        val lower = decoded.lowercase(Locale.getDefault())
+        return when {
+            lower.contains("rm -rf") || lower.contains("mkfifo") || lower.contains("/dev/tcp") -> "high"
+            lower.contains("curl") || lower.contains("wget") || lower.contains("nc ") -> "medium"
+            else -> "low"
+        }
+    }
+
+    private fun detectEncoding(lines: List<String>): String {
+        val text = lines.joinToString("\n")
+        return when {
+            EXPLICIT_INTERPRETER_PATTERN.matcher(text).find() && BASE64_PATTERN.matcher(text).find() -> "base64-shell"
+            HEX_PATTERN.matcher(text).find() && !BASE64_PATTERN.matcher(text).find() -> "hex-obfuscated"
+            OBFUSCATION_VAR_PATTERN.matcher(text).find() -> "variable-obfuscated"
+            BASE64_PATTERN.matcher(text).find() -> "base64"
+            else -> "plain"
+        }
+    }
+
+    private fun buildSummary(
+        lineCount: Int,
+        hasDanger: Boolean,
+        hasWarning: Boolean,
+        decodedSnippets: List<DecodedSnippet>,
+        suspiciousPatterns: List<String>
+    ): String {
+        val parts = mutableListOf<String>()
+        parts.add("共 $lineCount 行")
+        if (hasDanger) parts.add("发现高危行为")
+        if (hasWarning) parts.add("发现可疑行为")
+        if (decodedSnippets.isNotEmpty()) parts.add("解码 ${decodedSnippets.size} 段内容")
+        if (suspiciousPatterns.isNotEmpty()) parts.add("命中 ${suspiciousPatterns.size} 个风险点")
+        return parts.joinToString("；").ifEmpty { "脚本结构正常，未发现明显风险" }
+    }
+}

@@ -1,0 +1,154 @@
+package com.safescope.scanner.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.safescope.scanner.ui.theme.AppColorTheme
+import com.safescope.scanner.ui.theme.AppThemeMode
+import com.safescope.scanner.ui.theme.SafeScopeTheme
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    onNavigateToAppScan: () -> Unit = {},
+    onNavigateToUSBDebug: () -> Unit = {},
+    onNavigateToFileScan: () -> Unit = {},
+    onNavigateToDeviceInfo: () -> Unit = {},
+    onNavigateToShAnalysis: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
+    onNavigateToFilePicker: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
+) {
+    SafeScopeTheme(
+        themeMode = AppThemeMode.SYSTEM,
+        colorTheme = AppColorTheme.MONET
+    ) {
+        Scaffold { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.padding(8.dp))
+                    Text(
+                        text = "SafeScope",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "安全检测中心",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FeatureCard(
+                    title = "风险应用扫描",
+                    description = "检测已安装应用的风险等级、权限和来源",
+                    onClick = onNavigateToAppScan
+                )
+
+                FeatureCard(
+                    title = "USB 调试检测",
+                    description = "检测 USB 调试状态和连接风险",
+                    onClick = onNavigateToUSBDebug
+                )
+
+                FeatureCard(
+                    title = "MT2/异常文件扫描",
+                    description = "扫描 MT2 目录、异常文件和可疑脚本",
+                    onClick = onNavigateToFileScan
+                )
+
+                FeatureCard(
+                    title = "设备信息",
+                    description = "查看设备详细信息、系统状态和安全状态",
+                    onClick = onNavigateToDeviceInfo
+                )
+
+                FeatureCard(
+                    title = "Shell 脚本分析",
+                    description = "深度分析 .sh 脚本，识别恶意代码并支持 Base64/Hex 解码",
+                    onClick = onNavigateToShAnalysis
+                )
+
+                FeatureCard(
+                    title = "关于软件",
+                    description = "作者信息、联系方式、隐私政策与开源声明",
+                    onClick = onNavigateToAbout
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureCard(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}

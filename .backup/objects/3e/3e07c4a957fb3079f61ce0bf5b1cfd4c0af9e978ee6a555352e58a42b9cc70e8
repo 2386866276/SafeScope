@@ -1,0 +1,136 @@
+package com.safescope.scanner.scanner
+
+import com.safescope.scanner.model.LogEntry
+import com.safescope.scanner.model.ThreatLevel
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.util.regex.Pattern
+
+object ShScanner {
+
+    private data class Rule(val pattern: Pattern, val title: String, val severity: Int)
+
+    private val DANGEROUS_RULES: List<Rule> = listOf(
+        Rule(Pattern.compile("(?i)curl\\s+.*\\|\\s*(bash|sh)"), "远程脚本执行", 5),
+        Rule(Pattern.compile("(?i)wget\\s+.*\\|\\s*(bash|sh)"), "远程脚本执行", 5),
+        Rule(Pattern.compile("(?i)\\.\\s*/dev/tcp/"), "反弹Shell", 5),
+        Rule(Pattern.compile("(?i)nc\\s+.*-e\\s+/bin/(ba)?sh"), "反弹Shell", 5),
+        Rule(Pattern.compile("(?i)python\\s+-c\\s+.*import\\s+socket"), "反弹Shell", 5),
+        Rule(Pattern.compile("(?i)chmod\\s+[0-7]*[4567][0-7]{2}\\s+"), "权限提升", 5),
+        Rule(Pattern.compile("(?i)echo\\s+.*>\\s*/etc/(passwd|shadow|sudoers)"), "系统文件篡改", 5),
+        Rule(Pattern.compile("(?i)rm\\s+-rf\\s+/(?!$)"), "危险删除操作", 5),
+        Rule(Pattern.compile("(?i)crontab\\s+-l"), "计划任务读取", 4),
+        Rule(Pattern.compile("(?i)crontab\\s+-e"), "计划任务修改", 4),
+        Rule(Pattern.compile("(?i)(useradd|adduser|usermod)"), "用户账户操作", 4),
+        Rule(Pattern.compile("(?i)iptables\\s+-[DF]"), "防火墙规则修改", 4),
+        Rule(Pattern.compile("(?i)/etc/init\\.d/"), "系统服务操作", 4),
+        Rule(Pattern.compile("(?i)base64\\s+-d\\s"), "Base64解码可疑内容", 3),
+        Rule(Pattern.compile("(?i)eval\\s+\\$"), "动态命令执行", 4),
+        Rule(Pattern.compile("(?i)export\\s+.*=.*\\$\\("), "环境变量动态赋值", 3),
+        Rule(Pattern.compile("(?i)unset\\s+HISTFILE"), "清除命令历史", 3),
+        Rule(Pattern.compile("(?i)history\\s+-c"), "清除命令历史", 3),
+        Rule(Pattern.compile("(?i)rm\\s+-rf\\s+\\~"), "删除用户目录", 4),
+        Rule(Pattern.compile("(?i)scp\\s+"), "远程文件传输", 3),
+        Rule(Pattern.compile("(?i)rsync\\s+"), "远程文件同步", 3),
+        Rule(Pattern.compile("(?i)openssl\\s+enc"), "加密操作", 2),
+        Rule(Pattern.compile("(?i)mktemp"), "临时文件创建", 2),
+        Rule(Pattern.compile("(?i)trap\\s+"), "信号捕获", 2),
+        Rule(Pattern.compile("(?i)read\\s+.*-p"), "交互输入读取", 2),
+        Rule(Pattern.compile("(?i)echo\\s+.*\\|\\s*mail"), "邮件发送", 2),
+        Rule(Pattern.compile("(?i)mail\\s+"), "邮件发送", 2)
+    )
+
+    private val WARNING_RULES: List<Rule> = listOf(
+        Rule(Pattern.compile("(?i)curl\\s+"), "使用curl下载", 2),
+        Rule(Pattern.compile("(?i)wget\\s+"), "使用wget下载", 2),
+        Rule(Pattern.compile("(?i)git\\s+clone"), "克隆远程仓库", 2),
+        Rule(Pattern.compile("(?i)nohup\\s+"), "后台任务", 2),
+        Rule(Pattern.compile("(?i)screen\\s+"), "Screen会话", 2),
+        Rule(Pattern.compile("(?i)tmux\\s+"), "Tmux会话", 2),
+        Rule(Pattern.compile("(?i)kill\\s+-9"), "强制终止进程", 2),
+        Rule(Pattern.compile("(?i)killall"), "批量终止进程", 2),
+        Rule(Pattern.compile("(?i)su\\s"), "提权执行", 2),
+        Rule(Pattern.compile("(?i)sudo\\s"), "Sudo执行", 2),
+        Rule(Pattern.compile("(?i)chmod\\s+"), "修改文件权限", 1),
+        Rule(Pattern.compile("(?i)chown\\s+"), "修改文件所有者", 2)
+    )
+
+    fun scan(inputStream: java.io.InputStream, fileName: String): List<LogEntry> {
+        val entries = mutableListOf<LogEntry>()
+        val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
+        var lineNumber = 0
+        var hasDanger = false
+        var hasWarning = false
+
+        reader.useLines { lines ->
+            lines.forEach { line ->
+                lineNumber++
+                if (line.isBlank()) return@forEach
+
+                for (rule in DANGEROUS_RULES) {
+                    val matcher = rule.pattern.matcher(line)
+                    if (matcher.find()) {
+                        hasDanger = true
+                        entries.add(
+                            LogEntry(
+                                timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
+                                fileName = fileName,
+                                title = rule.title,
+                                detail = "第 $lineNumber 行: ${line.trim().take(120)}",
+                                level = ThreatLevel.fromSeverity(rule.severity),
+                                lineNumber = lineNumber,
+                                isKeywordHighlighted = true
+                            )
+                        )
+                        break
+                    }
+                }
+
+                if (entries.none { it.lineNumber == lineNumber }) {
+                    for (rule in WARNING_RULES) {
+                        val matcher = rule.pattern.matcher(line)
+                        if (matcher.find()) {
+                            hasWarning = true
+                            entries.add(
+                                LogEntry(
+                                    timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
+                                    fileName = fileName,
+                                    title = rule.title,
+                                    detail = "第 $lineNumber 行: ${line.trim().take(120)}",
+                                    level = ThreatLevel.fromSeverity(rule.severity),
+                                    lineNumber = lineNumber,
+                                    isKeywordHighlighted = true
+                                )
+                            )
+                            break
+                        }
+                    }
+                }
+            }
+        }
+
+        if (lineNumber == 0) {
+            entries.add(
+                LogEntry(
+                    timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
+                    fileName = fileName,
+                    title = "空文件",
+                    detail = "文件内容为空或无法读取",
+                    level = ThreatLevel.INFO
+                )
+            )
+        } else if (!hasDanger && !hasWarning) {
+            entries.add(
+                LogEntry(
+                    timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
+                    fileName = fileName,
+                    title = "未发现明显风险",
+                    detail = "共扫描 $lineNumber 行，未匹配到已知风险模式",
+                    level = ThreatLevel.SAFE
+                )
+            )
+        }
+
+        return entries
+    }
+}

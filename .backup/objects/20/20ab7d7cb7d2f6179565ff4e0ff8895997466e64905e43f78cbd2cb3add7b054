@@ -1,0 +1,65 @@
+package com.safescope.scanner
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import com.safescope.scanner.ui.screens.AppScanScreen
+import com.safescope.scanner.ui.screens.DeviceInfoScreen
+import com.safescope.scanner.ui.screens.FileScanScreen
+import com.safescope.scanner.ui.screens.HomeScreen
+import com.safescope.scanner.ui.screens.USBDebugScreen
+import com.safescope.scanner.ui.theme.AppColorTheme
+import com.safescope.scanner.ui.theme.AppThemeMode
+import com.safescope.scanner.ui.theme.SafeScopeTheme
+import com.safescope.scanner.ui.theme.createTypography
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val typography = createTypography(this)
+        enableEdgeToEdge()
+        setContent {
+            SafeScopeTheme(
+                themeMode = AppThemeMode.SYSTEM,
+                colorTheme = AppColorTheme.MONET,
+                typography = typography
+            ) {
+                SafeScopeApp()
+            }
+        }
+    }
+}
+
+@Composable
+fun SafeScopeApp() {
+    var currentScreen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("home") }
+
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        when (currentScreen) {
+            "home" -> HomeScreen(
+                onNavigateToAppScan = { currentScreen = "app_scan" },
+                onNavigateToUSBDebug = { currentScreen = "usb_debug" },
+                onNavigateToFileScan = { currentScreen = "file_scan" },
+                onNavigateToDeviceInfo = { currentScreen = "device_info" }
+            )
+            "app_scan" -> AppScanScreen(
+                onBack = { currentScreen = "home" }
+            )
+            "usb_debug" -> USBDebugScreen(
+                onBack = { currentScreen = "home" }
+            )
+            "file_scan" -> FileScanScreen(
+                onBack = { currentScreen = "home" }
+            )
+            "device_info" -> DeviceInfoScreen(
+                onBack = { currentScreen = "home" }
+            )
+        }
+    }
+}

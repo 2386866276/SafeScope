@@ -1,0 +1,287 @@
+package com.safescope.scanner.ui.theme
+
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+
+enum class AppThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
+enum class AppColorTheme {
+    MONET,
+    MONET_LAVENDER,
+    MONET_MIST,
+    MONET_SAKURA,
+    CUSTOM_DARK,
+    CUSTOM_LIGHT
+}
+
+private val MonetLavenderLight = lightColorScheme(
+    primary = Color(0xFF6750A4),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFEADDFF),
+    onPrimaryContainer = Color(0xFF21005D),
+    secondary = Color(0xFF625B71),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFE8DEF8),
+    onSecondaryContainer = Color(0xFF1D192B),
+    tertiary = Color(0xFF7D5260),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFFFD8E4),
+    onTertiaryContainer = Color(0xFF31111D),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    background = Color(0xFFFFFBFE),
+    onBackground = Color(0xFF1C1B1F),
+    surface = Color(0xFFFFFBFE),
+    onSurface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFFE7E0EC),
+    onSurfaceVariant = Color(0xFF49454F),
+    outline = Color(0xFF79747E),
+    outlineVariant = Color(0xFFCAC4D0)
+)
+
+private val MonetLavenderDark = darkColorScheme(
+    primary = Color(0xFFD0BCFF),
+    onPrimary = Color(0xFF381E72),
+    primaryContainer = Color(0xFF4F378B),
+    onPrimaryContainer = Color(0xFFEADDFF),
+    secondary = Color(0xFFCCC2DC),
+    onSecondary = Color(0xFF332D41),
+    secondaryContainer = Color(0xFF4A4458),
+    onSecondaryContainer = Color(0xFFE8DEF8),
+    tertiary = Color(0xFFEFB8C8),
+    onTertiary = Color(0xFF492532),
+    tertiaryContainer = Color(0xFF633B48),
+    onTertiaryContainer = Color(0xFFFFD8E4),
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410),
+    errorContainer = Color(0xFF8C1D18),
+    onErrorContainer = Color(0xFFF9DEDC),
+    background = Color(0xFF1C1B1F),
+    onBackground = Color(0xFFE6E1E5),
+    surface = Color(0xFF1C1B1F),
+    onSurface = Color(0xFFE6E1E5),
+    surfaceVariant = Color(0xFF49454F),
+    onSurfaceVariant = Color(0xFFCAC4D0),
+    outline = Color(0xFF938F99),
+    outlineVariant = Color(0xFF49454F)
+)
+
+private val MonetMistLight = lightColorScheme(
+    primary = Color(0xFF006B5E),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF8AF7E2),
+    onPrimaryContainer = Color(0xFF00201B),
+    secondary = Color(0xFF4D6357),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFD0E8DB),
+    onSecondaryContainer = Color(0xFF0A1F17),
+    tertiary = Color(0xFF3D6373),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFC3E8FC),
+    onTertiaryContainer = Color(0xFF001F2A),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    background = Color(0xFFFFFBFE),
+    onBackground = Color(0xFF1C1B1F),
+    surface = Color(0xFFFFFBFE),
+    onSurface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFFDDE5DA),
+    onSurfaceVariant = Color(0xFF414942),
+    outline = Color(0xFF727970),
+    outlineVariant = Color(0xFFC1C9BE)
+)
+
+private val MonetMistDark = darkColorScheme(
+    primary = Color(0xFF6CDBC0),
+    onPrimary = Color(0xFF003730),
+    primaryContainer = Color(0xFF005144),
+    onPrimaryContainer = Color(0xFF8AF7E2),
+    secondary = Color(0xFFB3CCBC),
+    onSecondary = Color(0xFF1F362B),
+    secondaryContainer = Color(0xFF354B40),
+    onSecondaryContainer = Color(0xFFD0E8DB),
+    tertiary = Color(0xFFA7CDDF),
+    onTertiary = Color(0xFF073544),
+    tertiaryContainer = Color(0xFF244C5D),
+    onTertiaryContainer = Color(0xFFC3E8FC),
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410),
+    errorContainer = Color(0xFF8C1D18),
+    onErrorContainer = Color(0xFFF9DEDC),
+    background = Color(0xFF1C1B1F),
+    onBackground = Color(0xFFE6E1E5),
+    surface = Color(0xFF1C1B1F),
+    onSurface = Color(0xFFE6E1E5),
+    surfaceVariant = Color(0xFF414942),
+    onSurfaceVariant = Color(0xFFC1C9BE),
+    outline = Color(0xFF8B9388),
+    outlineVariant = Color(0xFF414942)
+)
+
+private val MonetSakuraLight = lightColorScheme(
+    primary = Color(0xFF8B4A6B),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFFFD8E8),
+    onPrimaryContainer = Color(0xFF3A0025),
+    secondary = Color(0xFF735961),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFFFD8E4),
+    onSecondaryContainer = Color(0xFF2B111E),
+    tertiary = Color(0xFF755A4A),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFFFDCC8),
+    onTertiaryContainer = Color(0xFF2A160D),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    background = Color(0xFFFFFBFE),
+    onBackground = Color(0xFF1C1B1F),
+    surface = Color(0xFFFFFBFE),
+    onSurface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFFF0DDE5),
+    onSurfaceVariant = Color(0xFF4E4449),
+    outline = Color(0xFF81736B),
+    outlineVariant = Color(0xFFD7C2C7)
+)
+
+private val MonetSakuraDark = darkColorScheme(
+    primary = Color(0xFFEFB8C8),
+    onPrimary = Color(0xFF492532),
+    primaryContainer = Color(0xFF633B48),
+    onPrimaryContainer = Color(0xFFFFD8E4),
+    secondary = Color(0xFFD7BFC7),
+    onSecondary = Color(0xFF352A2F),
+    secondaryContainer = Color(0xFF4C4045),
+    onSecondaryContainer = Color(0xFFF5DEE4),
+    tertiary = Color(0xFFE4C4B5),
+    onTertiary = Color(0xFF442A1F),
+    tertiaryContainer = Color(0xFF5C4033),
+    onTertiaryContainer = Color(0xFFFFDCC8),
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410),
+    errorContainer = Color(0xFF8C1D18),
+    onErrorContainer = Color(0xFFF9DEDC),
+    background = Color(0xFF1C1B1F),
+    onBackground = Color(0xFFE6E1E5),
+    surface = Color(0xFF1C1B1F),
+    onSurface = Color(0xFFE6E1E5),
+    surfaceVariant = Color(0xFF4E4449),
+    onSurfaceVariant = Color(0xFFD7C2C7),
+    outline = Color(0xFFA08E94),
+    outlineVariant = Color(0xFF4E4449)
+)
+
+private val CustomDarkScheme = darkColorScheme(
+    primary = Color(0xFF1A73AE),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF003B66),
+    onPrimaryContainer = Color(0xFFCBE6FF),
+    secondary = Color(0xFF5BA4C9),
+    onSecondary = Color(0xFF003546),
+    secondaryContainer = Color(0xFF004D66),
+    onSecondaryContainer = Color(0xFFCBE6FF),
+    tertiary = Color(0xFF2D7D5F),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF00503B),
+    onTertiaryContainer = Color(0xFF8CF7C9),
+    error = Color(0xFFF2B8B5),
+    onError = Color(0xFF601410),
+    errorContainer = Color(0xFF8C1D18),
+    onErrorContainer = Color(0xFFF9DEDC),
+    background = Color(0xFF0F1419),
+    onBackground = Color(0xFFE4E8EC),
+    surface = Color(0xFF0F1419),
+    onSurface = Color(0xFFE4E8EC),
+    surfaceVariant = Color(0xFF1C2936),
+    onSurfaceVariant = Color(0xFFB0BEC5),
+    outline = Color(0xFF78909C),
+    outlineVariant = Color(0xFF37474F)
+)
+
+private val CustomLightScheme = lightColorScheme(
+    primary = Color(0xFF1A73AE),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFD3E5F7),
+    onPrimaryContainer = Color(0xFF001D33),
+    secondary = Color(0xFF4A83A6),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFD3E5F7),
+    onSecondaryContainer = Color(0xFF001E2C),
+    tertiary = Color(0xFF2D7D5F),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFD0F3E3),
+    onTertiaryContainer = Color(0xFF002117),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    background = Color(0xFFFFFBFE),
+    onBackground = Color(0xFF1C1B1F),
+    surface = Color(0xFFFFFBFE),
+    onSurface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFFDEE4E8),
+    onSurfaceVariant = Color(0xFF42474D),
+    outline = Color(0xFF73777C),
+    outlineVariant = Color(0xFFC3C6CA)
+)
+
+@Composable
+fun rememberColorScheme(
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    colorTheme: AppColorTheme = AppColorTheme.MONET
+): ColorScheme {
+    val isDark = when (themeMode) {
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.DARK -> true
+        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
+    val context = LocalContext.current
+
+    return when (colorTheme) {
+        AppColorTheme.MONET -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } else if (isDark) MonetLavenderDark else MonetLavenderLight
+        }
+        AppColorTheme.MONET_LAVENDER -> if (isDark) MonetLavenderDark else MonetLavenderLight
+        AppColorTheme.MONET_MIST -> if (isDark) MonetMistDark else MonetMistLight
+        AppColorTheme.MONET_SAKURA -> if (isDark) MonetSakuraDark else MonetSakuraLight
+        AppColorTheme.CUSTOM_DARK -> CustomDarkScheme
+        AppColorTheme.CUSTOM_LIGHT -> CustomLightScheme
+    }
+}
+
+@Composable
+fun SafeScopeTheme(
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    colorTheme: AppColorTheme = AppColorTheme.MONET,
+    typography: androidx.compose.material3.Typography = DefaultTypography,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = rememberColorScheme(themeMode = themeMode, colorTheme = colorTheme)
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = typography,
+        content = content
+    )
+}

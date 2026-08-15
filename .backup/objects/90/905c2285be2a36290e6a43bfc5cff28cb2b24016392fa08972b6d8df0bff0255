@@ -1,0 +1,119 @@
+package com.safescope.scanner
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.safescope.scanner.ui.screens.AboutScreen
+import com.safescope.scanner.ui.screens.AppScanScreen
+import com.safescope.scanner.ui.screens.DeviceInfoScreen
+import com.safescope.scanner.ui.screens.FileScanPickerScreen
+import com.safescope.scanner.ui.screens.FileScanScreen
+import com.safescope.scanner.ui.screens.HomeScreen
+import com.safescope.scanner.ui.screens.PrivacyPolicyDialog
+import com.safescope.scanner.ui.screens.SettingsScreen
+import com.safescope.scanner.ui.screens.ShAnalysisScreen
+import com.safescope.scanner.ui.screens.USBDebugScreen
+import com.safescope.scanner.ui.theme.AppColorTheme
+import com.safescope.scanner.ui.theme.AppThemeMode
+import com.safescope.scanner.ui.theme.SafeScopeTheme
+import com.safescope.scanner.ui.theme.createTypography
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val typography = createTypography(this)
+        enableEdgeToEdge()
+        setContent {
+            SafeScopeTheme(
+                themeMode = AppThemeMode.SYSTEM,
+                colorTheme = AppColorTheme.MONET,
+                typography = typography
+            ) {
+                SafeScopeApp()
+            }
+        }
+    }
+}
+
+@Composable
+fun SafeScopeApp() {
+    var currentScreen by remember { mutableStateOf("home") }
+    var policyAccepted by remember { mutableStateOf(false) }
+    var themeMode by remember { mutableStateOf(AppThemeMode.SYSTEM) }
+    var colorTheme by remember { mutableStateOf(AppColorTheme.MONET) }
+
+    if (!policyAccepted) {
+        PrivacyPolicyDialog(
+            onAgree = { policyAccepted = true },
+            onDisagree = { policyAccepted = false }
+        )
+        return
+    }
+
+    val context = LocalContext.current
+
+    SafeScopeTheme(
+        themeMode = themeMode,
+        colorTheme = colorTheme
+    ) {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            when (currentScreen) {
+                "home" -> HomeScreen(
+                    onNavigateToAppScan = { currentScreen = "app_scan" },
+                    onNavigateToUSBDebug = { currentScreen = "usb_debug" },
+                    onNavigateToFileScan = { currentScreen = "file_scan" },
+                    onNavigateToDeviceInfo = { currentScreen = "device_info" },
+                    onNavigateToShAnalysis = { currentScreen = "sh_analysis" },
+                    onNavigateToAbout = { currentScreen = "about" },
+                    onNavigateToFilePicker = { currentScreen = "file_picker" },
+                    onNavigateToSettings = { currentScreen = "settings" }
+                )
+                "app_scan" -> AppScanScreen(
+                    onBack = { currentScreen = "home" }
+                )
+                "usb_debug" -> USBDebugScreen(
+                    onBack = { currentScreen = "home" }
+                )
+                "file_scan" -> FileScanScreen(
+                    onBack = { currentScreen = "home" }
+                )
+                "device_info" -> DeviceInfoScreen(
+                    onBack = { currentScreen = "home" }
+                )
+                "sh_analysis" -> ShAnalysisScreen(
+                    onBack = { currentScreen = "home" }
+                )
+                "about" -> AboutScreen(
+                    onBack = { currentScreen = "home" },
+                    onOpenPrivacyPolicy = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ifdian.net/a/zephyr7"))
+                        context.startActivity(intent)
+                    }
+                )
+                "file_picker" -> FileScanPickerScreen(
+                    onBack = { currentScreen = "home" }
+                )
+                "settings" -> SettingsScreen(
+                    onBack = { currentScreen = "home" },
+                    currentThemeMode = themeMode,
+                    currentColorTheme = colorTheme,
+                    onThemeModeChange = { themeMode = it },
+                    onColorThemeChange = { colorTheme = it }
+                )
+            }
+        }
+    }
+}

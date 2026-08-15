@@ -1,0 +1,323 @@
+package com.safescope.scanner.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.safescope.scanner.R
+import com.safescope.scanner.model.DecodedSnippet
+import com.safescope.scanner.model.RiskLevel
+import com.safescope.scanner.model.ScriptAnalysisAction
+import com.safescope.scanner.model.ShScriptAnalysis
+import com.safescope.scanner.scanner.ShScriptAnalyzer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShAnalysisScreen(
+    onBack: () -> Unit = {}
+) {
+    var analysis by remember { mutableStateOf<ShScriptAnalysis?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        withContext(Dispatchers.IO) {
+            try {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val assetManager = context.assets
+                val inputStream = try {
+                    assetManager.open("sample_malicious.sh")
+                } catch (e: Exception) {
+                    null
+                }
+                analysis = if (inputStream != null) {
+                    ShScriptAnalyzer.analyze(inputStream, "sample_malicious.sh")
+                } else {
+                    ShScriptAnalysis(
+                        fileName = "demo.sh",
+                        fileSize = 128,
+                        lineCount = 4,
+                        encodingType = "plain",
+                        decodedSnippets = emptyList(),
+                        suspiciousPatterns = listOf("示例：动态命令构造", "示例：远程脚本执行"),
+                        overallRisk = ThreatLevel.WARNING,
+                        suggestedAction = ScriptAnalysisAction.WARN,
+                        summary = "演示模式：未加载示例脚本，展示分析界面与命中结果"
+                    )
+                }
+            } catch (e: Exception) {
+                analysis = null
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Shell 脚本深度分析") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            if (isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("正在分析脚本...")
+                    }
+                }
+            } else if (analysis != null) {
+                val result = analysis!!
+
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Code,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = result.fileName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${result.lineCount} 行 · ${result.fileSize} 字节",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        androidx.compose.material3.AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
+                                containerColor = result.overallRisk.color
+                            ),
+                            label = {
+                                Text(
+                                    text = result.overallRisk.label,
+                                    color = androidx.compose.ui.graphics.Color.White
+                                )
+                            }
+                        )
+                    }
+                }
+
+                item {
+                    ActionCard(
+                        title = "建议处理动作",
+                        action = result.suggestedAction,
+                        summary = result.summary
+                    )
+                }
+
+                if (result.suspiciousPatterns.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "风险命中 (${result.suspiciousPatterns.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    items(result.suspiciousPatterns) { pattern ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = pattern,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (result.decodedSnippets.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "解码内容 (${result.decodedSnippets.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    items(result.decodedSnippets) { snippet ->
+                        DecodedCard(snippet = snippet)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionCard(
+    title: String,
+    action: ScriptAnalysisAction,
+    summary: String
+) {
+    val containerColor = when (action) {
+        ScriptAnalysisAction.BLOCK -> MaterialTheme.colorScheme.errorContainer
+        ScriptAnalysisAction.WARN -> MaterialTheme.colorScheme.tertiaryContainer
+        ScriptAnalysisAction.MONITOR -> MaterialTheme.colorScheme.primaryContainer
+        ScriptAnalysisAction.NONE -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                androidx.compose.material3.AssistChip(
+                    onClick = {},
+                    enabled = false,
+                    label = { Text(text = action.label) }
+                )
+            }
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun DecodedCard(snippet: DecodedSnippet) {
+    val riskColor = when (snippet.riskHint) {
+        "high" -> RiskLevel.DANGEROUS.color
+        "medium" -> RiskLevel.WARNING.color
+        else -> RiskLevel.SAFE.color
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = snippet.encodingType,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                androidx.compose.material3.AssistChip(
+                    onClick = {},
+                    enabled = false,
+                    colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
+                        containerColor = riskColor
+                    ),
+                    label = {
+                        Text(
+                            text = snippet.riskHint,
+                            color = androidx.compose.ui.graphics.Color.White
+                        )
+                    }
+                )
+            }
+            Text(
+                text = "原文：${snippet.original}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "解码：${snippet.decoded}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
